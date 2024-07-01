@@ -1,0 +1,58 @@
+---
+- name: Collect information and run commands based on user input
+  hosts: esxi_hosts
+  gather_facts: no
+  vars:
+    ansible_user: "{{ lookup('env', 'ANSIBLE_USER') }}"
+    ansible_password: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+    command_file_url: "https://raw.githubusercontent.com/your_github_username/esxi-commands/main/commands.yml"
+
+  tasks:
+    - name: Ensure SSH is enabled on ESXi
+      vmware_host_service_manager:
+        hostname: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        esxi_hostname: "{{ ansible_host }}"
+        validate_certs: no
+        service_name: TSM-SSH
+        state: started
+      delegate_to: localhost
+
+    - name: Download command file from GitHub
+      ansible.builtin.get_url:
+        url: "{{ command_file_url }}"
+        dest: "/tmp/commands.yml"
+
+    - name: Load command file
+      ansible.builtin.include_vars:
+        file: "/tmp/commands.yml"
+        name: command_data
+
+    - name: Prompt user to display command list or enter a command
+      ansible.builtin.pause:
+        prompt: "Type 'list' to display available commands or enter the command to run:"
+      register: user_command_input
+
+    - name: Display command list if requested
+      ansible.builtin.debug:
+        msg: "{{ command_data.commands }}"
+      when: user_command_input.user_input == 'list'
+
+    - name: Prompt user for the command to run
+      ansible.builtin.pause:
+        prompt: "Enter the command to run from the list:"
+      register: user_command
+      when: user_command_input.user_input == 'list'
+
+    - name: Set final command
+      set_fact:
+        final_command: "{{ user_command_input.user_input if user_command_input.user_input != 'list' else user_command.user_input }}"
+
+    - name: Run the final nscli command based on user input
+      ansible.builtin.shell: "{{ final_command }}"
+      register: nscli_output
+
+    - name: Print nscli command output
+      ansible.builtin.debug:
+        var: nscli_output.stdout
