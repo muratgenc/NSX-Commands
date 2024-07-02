@@ -1,3 +1,6 @@
+Note: After logging into the root shell of an ESXi host, you can do one of the following:
+Use a singleton NSX CLI directly from the root shell by running the ```nsxcli –c <cmd-to-run>``` command.
+
 Step 1: Store Credentials in Terraform Enterprise
 Create a Terraform Enterprise Workspace:
 Navigate to your Terraform Enterprise dashboard and create a new workspace.
